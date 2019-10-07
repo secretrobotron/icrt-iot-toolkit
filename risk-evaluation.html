@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ICRT IoT Toolkit - Issue Report Generator</title>
+  <link rel="stylesheet" href="./bootstrap-4.3.1-dist/css/bootstrap.min.css">
+  <style>
+    #issue-classification input[type="checkbox"] {
+      margin-right: .5em;
+    }
+
+    #risk-classification .data-columns div[data-column] div {
+      height: 2em;
+    }
+
+    #risk-classification .data-columns .column-title {
+      font-weight: bold;
+    }
+
+    h3, h5, #score {
+      display: inline-block;
+    }
+
+    #score {
+      border-radius: 5px;
+      min-width: 3em;
+      padding: .25em;
+      box-sizing: border-box;
+    }
+
+    .score-sticker {
+      display: inline-block;
+      width: 4.5em;
+      border-radius: 5px;
+      height: 2em;
+      margin-left: 1em;
+      padding: .25em;
+      color: white;
+      font-weight: bold;
+      box-sizing: border-box;
+    }
+
+    .score-sticker:after {
+      font-size: .9em;
+    }
+
+    .score-sticker[score="0"] {
+      background: green;
+    }
+    .score-sticker[score="0"]:after {
+      content: '🙂 Low';
+    }
+    .score-sticker[score="0.5"] {
+      background: gold;
+    }
+    .score-sticker[score="0.5"]:after {
+      content: '😕 Med';
+    }
+    .score-sticker[score="1"] {
+      background: salmon;
+    }
+    .score-sticker[score="1"]:after {
+      content: '😞 High';
+    }
+  </style>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+      const classifications = [
+        'Data Exposure', 'Data Loss',
+        'Inadequate Protection', 'Denial of Service', 
+        'Physical Injury', 'Other'
+      ];
+
+      function setupClassifications () {
+        const columns = document.querySelectorAll('#issue-classification .data-columns div');
+        classifications.forEach((c, i) => {
+          const position = i % columns.length;
+          const entry = document.createElement('div');
+          const label = document.createElement('label');
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          label.textContent = c;
+          checkbox.value = c;
+          entry.appendChild(checkbox);
+          entry.appendChild(label);
+          columns[position].appendChild(entry);
+        });
+      }
+
+      setupClassifications();
+
+      document.querySelector('#risk-classification button.add').addEventListener('click', e => {
+        const columns = document.querySelectorAll('#risk-classification .data-columns [data-column]');
+
+        const values = {
+          description: document.querySelector('#risk-classification input.description'),
+          type: document.querySelector('#risk-classification select.type'),
+          severity: document.querySelector('#risk-classification select.severity')
+        };
+
+        const valuesMap = {
+          remove: document.createElement('button'),
+          severity: document.createElement('span'),
+          type: document.createElement('span'),
+          description: document.createElement('span')
+        };
+
+        Object.keys(values).forEach(key => {
+          valuesMap[key].textContent = values[key].value;
+        });
+
+        valuesMap.remove.textContent = 'Remove'
+
+        valuesMap.remove.addEventListener('click', e => {
+          columns.forEach(c => {
+            const element = valuesMap[c.getAttribute('data-column')];
+            c.removeChild(element.parentNode);
+          });
+        });
+
+        columns.forEach(c => {
+          const wrapper = document.createElement('div');
+          wrapper.appendChild(valuesMap[c.getAttribute('data-column')]);
+          c.appendChild(wrapper);
+        });
+      });
+
+      document.querySelectorAll('input[type="radio"][data-metric]').forEach(e => {
+        e.addEventListener('change', calculateScore);
+      });
+
+      function calculateScore() {
+        const factors = {
+          impact: 0,
+          exploitationProbability: 0,
+          mitigationFactors: 0,
+          remediationDifficulty: 0
+        };
+
+        document.querySelectorAll('input[type="radio"][data-metric]').forEach(e => {
+          if (e.checked) {
+            factors[e.getAttribute('data-metric')] = parseFloat(e.value);
+          }
+        });
+
+        const score = ( factors.impact +
+                        factors.exploitationProbability +
+                        factors.mitigationFactors +
+                        factors.remediationDifficulty ) / 4 * 10;
+
+        
+        for (let key in factors) {
+          const scoreSticker = document.querySelector('div.row.' + key + ' .score-sticker');
+          scoreSticker.setAttribute('score', factors[key]);
+        }
+
+        const scoreElement = document.querySelector('#score');
+        const scorePhrase = score < 3 ? 'Low' : (score < 6 ? 'Medium' : 'High');
+
+        scoreElement.textContent = score + ' ' + scorePhrase;
+
+        const r = Math.min(255, Math.round(score/5*255));
+        const g = Math.round((10-score)/10*255);
+        const b = 0;
+
+        scoreElement.style.background = 'rgb(' + r + ', ' + g + ', ' + b + ')';
+      }
+
+      calculateScore();
+    });
+  </script>
+</head>
+<body>
+  <main role="main">
+    <div class="jumbotron">
+      <div class="container">
+        <h1>ICRT IoT Issue Report Generator</h1>
+      </div>
+      <div class="container">
+        <h3>Risk Score: <div id="score"></div></h3>
+      </div>
+    </div>
+    <div class="container">
+      <div class="row mb-3">
+        <div class="col-12">
+          <h2>Issue Identification</h2>
+        </div>
+      </div>      
+      <div class="row mb-3" id="issue-classification">
+        <div class="col-12">
+          <div class="row data-columns">
+            <div class="col-4"></div>
+            <div class="col-4"></div>
+            <div class="col-4"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="container mb-5">
+      <div class="row mb-3">
+        <div class="col-12"><h2>Risk Details</h2></div>
+      </div>
+      <div class="row mb-3">
+        <div class="col-12"><h5>Impact Factors</h5></div>
+      </div>
+      <div class="row mb-3" id="risk-classification">
+        <div class="col-12">
+          <div class="row container">
+            <select class="type">
+              <option>Safety</option>
+              <option>Privacy</option>
+              <option>Financial</option>
+              <option>Property</option>
+            </select>
+            <select class="severity">
+              <option>High</option>
+              <option>Medium</option>
+              <option>Low</option>
+            </select>
+            <input class="description">
+            <button class="add">Add</button>
+          </div>
+          <div class="row data-columns mt-3">
+            <div class="col-2" data-column="remove"><div class="column-title"></div></div>
+            <div class="col-2" data-column="severity"><div class="column-title">Severity</div></div>
+            <div class="col-2" data-column="type"><div class="column-title">Type</div></div>
+            <div class="col-6" data-column="description"><div class="column-title">Description</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="row mb-3 impact">
+        <div class="col-6"><h5>Overall Impact</h5><div class="score-sticker"></div></div>
+        <div class="col-6">
+          <div class="row">
+            <div class="col-4">High</div>
+            <div class="col-4">Medium</div>
+            <div class="col-4">Low</div>
+          </div>
+          <div class="row">
+            <div class="col-4">
+              <input type="radio" name="impact" data-metric="impact" value="1" checked>
+            </div>
+            <div class="col-4">
+              <input type="radio" name="impact" data-metric="impact" value="0.5">
+            </div>
+            <div class="col-4">
+              <input type="radio" name="impact" data-metric="impact" value="0">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row mb-3 exploitationProbability">
+        <div class="col-6"><h5>Probability of Exploitation</h5><div class="score-sticker"></div></div>
+        <div class="col-6">
+          <div class="row">
+            <div class="col-4">High</div>
+            <div class="col-4">Medium</div>
+            <div class="col-4">Low</div>
+          </div>
+          <div class="row">
+            <div class="col-4">
+              <input type="radio" name="exploitationProbability" data-metric="exploitationProbability" value="1" checked>
+            </div>
+            <div class="col-4">
+              <input type="radio" name="exploitationProbability" data-metric="exploitationProbability" value="0.5">
+            </div>
+            <div class="col-4">
+              <input type="radio" name="exploitationProbability" data-metric="exploitationProbability" value="0">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row mb-3 mitigationFactors">
+        <div class="col-6"><h5>Current Mitigation Factors</h5><div class="score-sticker"></div></div>
+        <div class="col-6">
+          <div class="row">
+            <div class="col-4">Good</div>
+            <div class="col-4">Poor</div>
+            <div class="col-4">Umitigated</div>
+          </div>
+          <div class="row">
+            <div class="col-4">
+              <input type="radio" name="mitigationFactors" data-metric="mitigationFactors" value="0" checked>
+            </div>
+            <div class="col-4">
+              <input type="radio" name="mitigationFactors" data-metric="mitigationFactors" value="0.5">
+            </div>
+            <div class="col-4">
+              <input type="radio" name="mitigationFactors" data-metric="mitigationFactors" value="1">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row mb-3 remediationDifficulty">
+        <div class="col-6"><h5>Remediation Difficulty</h5><div class="score-sticker"></div></div>
+        <div class="col-6">
+          <div class="row">
+            <div class="col-4">Easy</div>
+            <div class="col-4">Medium</div>
+            <div class="col-4">Hard</div>
+          </div>
+          <div class="row">
+            <div class="col-4">
+              <input type="radio" name="remediationDifficulty" data-metric="remediationDifficulty" value="0" checked>
+            </div>
+            <div class="col-4">
+              <input type="radio" name="remediationDifficulty" data-metric="remediationDifficulty" value="0.5">
+            </div>
+            <div class="col-4">
+              <input type="radio" name="remediationDifficulty" data-metric="remediationDifficulty" value="1">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
